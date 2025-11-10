@@ -4,12 +4,15 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'My Express API',
+      title: 'DigitalT3 Weekly Report Platform - Backend API',
       version: '1.0.0',
-      description: 'A simple Express API documented with Swagger',
-    }
+      description:
+        'REST API for authentication, reports, analytics, admin operations, and platform metrics.',
+    },
   },
-  apis: ['./src/routes/*.js'], // Path to the API docs
+  apis: [
+    './src/routes/*.js',
+  ], // Path to the API docs
 };
 
 const swaggerSpec = swaggerJSDoc(options);

@@ -1,4 +1,6 @@
-// This file will export middleware as the application grows
+const auth = require('./auth');
+
+// This file exports middleware groups for convenience
 module.exports = {
-  // Add your middleware here
+  auth,
 };

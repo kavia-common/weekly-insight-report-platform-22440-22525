@@ -2,12 +2,19 @@ const express = require('express');
 const healthController = require('../controllers/health');
 
 const router = express.Router();
-// Health endpoint
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Health
+ *     description: Health checks
+ */
 
 /**
  * @swagger
  * /:
  *   get:
+ *     tags: [Health]
  *     summary: Health endpoint
  *     responses:
  *       200:
