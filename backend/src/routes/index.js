@@ -71,18 +71,18 @@ router.get('/health/live', (req, res) => {
  */
 router.get('/health/ready', (req, res) => {
   const db = getDbHealth();
-  // If MongoDB is configured but disconnected, report not ready; otherwise OK.
-  const mongoConfigured = !!config.mongoUri;
+  // Readiness is tied to HTTP server binding only. DB readiness is informative.
   const serverReady = readiness.isReady();
-  const dbReady = !mongoConfigured || db.state === 'connected';
-  const ready = serverReady && dbReady;
+
   const payload = {
-    status: ready ? 'ready' : 'not-ready',
+    status: serverReady ? 'ready' : 'not-ready',
     serverReady,
     db,
     timestamp: new Date().toISOString(),
+    note: 'Readiness reflects HTTP server listening state; DB status is informational only.',
   };
-  return res.status(ready ? 200 : 503).json(payload);
+
+  return res.status(serverReady ? 200 : 503).json(payload);
 });
 
 module.exports = router;
