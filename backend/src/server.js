@@ -9,8 +9,14 @@ let server;
 
 async function bootstrap() {
   try {
-    await connectMongo();
-    console.log('MongoDB connected. Starting HTTP server...');
+    // Only attempt to connect to MongoDB if a URI is configured.
+    if (config.mongoUri) {
+      await connectMongo();
+      console.log('MongoDB connected. Starting HTTP server...');
+    } else {
+      console.warn('MONGODB_URI not set. Skipping MongoDB connection and starting HTTP server without DB.');
+    }
+
     server = app.listen(PORT, HOST, () => {
       console.log(`Server running at http://${HOST}:${PORT}`);
     });
