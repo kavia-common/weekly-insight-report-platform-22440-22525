@@ -4,7 +4,22 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('../swagger');
+let swaggerSpec;
+try {
+  // Generate swagger spec; guard to avoid startup crash if it throws
+  swaggerSpec = require('../swagger');
+} catch (e) {
+  console.warn('[Startup] Swagger spec generation failed, serving minimal docs:', e?.message || e);
+  swaggerSpec = {
+    openapi: '3.0.0',
+    info: {
+      title: 'DigitalT3 Weekly Report Platform - Backend API',
+      version: '1.0.0',
+      description: 'Fallback swagger spec (generation failed).',
+    },
+    paths: {},
+  };
+}
 const config = require('./config');
 
 const rootRoutes = require('./routes');
@@ -48,28 +63,33 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Swagger UI with dynamic server url
+// Swagger UI with dynamic server url; protect against runtime errors
 app.use('/docs', swaggerUi.serve, (req, res, next) => {
-  const host = req.get('host');
-  let protocol = req.protocol;
-  const actualPort = req.socket.localPort;
-  const hasPort = host.includes(':');
-  const needsPort =
-    !hasPort &&
-    ((protocol === 'http' && actualPort !== 80) ||
-      (protocol === 'https' && actualPort !== 443));
-  const fullHost = needsPort ? `${host}:${actualPort}` : host;
-  protocol = req.secure ? 'https' : protocol;
+  try {
+    const host = req.get('host');
+    let protocol = req.protocol;
+    const actualPort = req.socket.localPort;
+    const hasPort = host.includes(':');
+    const needsPort =
+      !hasPort &&
+      ((protocol === 'http' && actualPort !== 80) ||
+        (protocol === 'https' && actualPort !== 443));
+    const fullHost = needsPort ? `${host}:${actualPort}` : host;
+    protocol = req.secure ? 'https' : protocol;
 
-  const dynamicSpec = {
-    ...swaggerSpec,
-    servers: [
-      {
-        url: `${protocol}://${fullHost}`,
-      },
-    ],
-  };
-  swaggerUi.setup(dynamicSpec)(req, res, next);
+    const dynamicSpec = {
+      ...swaggerSpec,
+      servers: [
+        {
+          url: `${protocol}://${fullHost}`,
+        },
+      ],
+    };
+    swaggerUi.setup(dynamicSpec)(req, res, next);
+  } catch (err) {
+    console.error('[Docs] Error mounting Swagger UI:', err);
+    res.status(500).json({ error: 'Failed to render API docs' });
+  }
 });
 
 // Body & cookie parsing
@@ -92,7 +112,7 @@ app.use('/metrics', metricsRoutes);
 app.use((err, req, res, next) => {
   // Avoid leaking details in prod
   const message = config.env === 'development' ? err.message : 'Internal Server Error';
-  console.error(err.stack);
+  console.error('[Error]', err && err.stack ? err.stack : err);
   res.status(500).json({
     status: 'error',
     message,
