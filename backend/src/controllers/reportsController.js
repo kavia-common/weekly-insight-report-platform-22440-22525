@@ -98,6 +98,12 @@ class ReportsController {
   }
 
   // PUBLIC_INTERFACE
+  async history(_req, res) {
+    /** Placeholder for reports history (audit-backed in future). */
+    return res.status(200).json({ items: [] });
+  }
+
+  // PUBLIC_INTERFACE
   async exportPlaceholder(_req, res) {
     /** Export/share placeholder endpoint; to be implemented (PDF/Excel/Email/Slack/Teams). */
     return res.status(501).json({

@@ -30,6 +30,10 @@ function safeLoadController() {
         return res.status(200).json({ reports: [], total: 0, note: 'reportsController unavailable' });
       },
       // PUBLIC_INTERFACE
+      async history(_req, res) {
+        return res.status(200).json({ items: [] });
+      },
+      // PUBLIC_INTERFACE
       async exportPlaceholder(_req, res) {
         /** Fallback: not implemented. */
         return res.status(501).json({ error: 'Not Implemented', note: 'reportsController unavailable' });
@@ -139,6 +143,18 @@ router.get('/:id', requireAuth, auditAccess('api.reports.getById'), reportsContr
  *         description: List of reports
  */
 router.get('/me', requireAuth, auditAccess('api.reports.listMine'), reportsController.listMine.bind(reportsController));
+
+/**
+ * @swagger
+ * /reports/history:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Report change history (placeholder)
+ *     responses:
+ *       200:
+ *         description: History items
+ */
+router.get('/history', requireAuth, requireRoles('manager', 'admin'), auditAccess('api.reports.history'), reportsController.history.bind(reportsController));
 
 /**
  * @swagger
