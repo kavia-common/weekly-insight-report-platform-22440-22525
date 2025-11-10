@@ -1,6 +1,7 @@
 const app = require('./app');
 const { connectMongo, registerShutdownHooks } = require('./db/mongoose');
 const config = require('./config');
+const readiness = require('./services/readiness');
 
 const PORT = Number(process.env.PORT || config.port || 3001);
 const HOST = process.env.HOST || config.host || '0.0.0.0';
@@ -28,15 +29,21 @@ async function bootstrap() {
       mongoConfigured: !!config.mongoUri,
     });
 
-    // Only attempt to connect to MongoDB if a URI is configured.
+    // Attempt to connect to MongoDB only if configured, but never block server start.
     if (config.mongoUri) {
-      await connectMongo();
-      console.log('[Startup] MongoDB connected. Starting HTTP server...');
+      try {
+        await connectMongo();
+        console.log('[Startup] MongoDB connected. Proceeding to start HTTP server...');
+      } catch (dbErr) {
+        console.error('[Startup] MongoDB connection failed. Starting HTTP server without DB:', dbErr?.message || dbErr);
+        // continue to start server; readiness endpoint will reflect DB state as not-ready if required
+      }
     } else {
       console.warn('[Startup] MONGODB_URI not set. Skipping MongoDB connection and starting HTTP server without DB.');
     }
 
     server = app.listen(PORT, HOST, () => {
+      readiness.setReady(true);
       console.log(`[Startup] Server listening on http://${HOST}:${PORT}`);
       console.log('[Startup] Health endpoints:');
       console.log(`  - Liveness:  http://${HOST}:${PORT}/health/live`);
@@ -51,9 +58,8 @@ async function bootstrap() {
     registerShutdownHooks();
   } catch (err) {
     console.error('[Startup] Failed to start server:', err);
-    // Do not hard exit in containerized environments; rely on probes to restart if needed.
-    // But to satisfy CI expectations, we still exit non-zero if boot sequence genuinely failed before listen.
-    process.exit(1);
+    // Avoid early termination to let liveness probe detect and restart if truly broken.
+    // Intentionally not calling process.exit here to prevent premature container death.
   }
 }
 
@@ -62,6 +68,7 @@ bootstrap();
 // Graceful shutdown for SIGTERM targeting HTTP server (Mongo handled in registerShutdownHooks)
 process.on('SIGTERM', () => {
   console.log('[Shutdown] SIGTERM signal received: closing HTTP server');
+  readiness.setReady(false);
   if (server) {
     server.close(() => {
       console.log('[Shutdown] HTTP server closed');

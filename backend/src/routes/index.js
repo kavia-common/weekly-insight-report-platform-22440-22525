@@ -1,6 +1,7 @@
 const express = require('express');
 const healthController = require('../controllers/health');
 const { getDbHealth } = require('../services/db');
+const readiness = require('../services/readiness');
 
 const router = express.Router();
 
@@ -71,9 +72,12 @@ router.get('/health/ready', (req, res) => {
   const db = getDbHealth();
   // If MongoDB is configured but disconnected, report not ready; otherwise OK.
   const mongoConfigured = !!process.env.MONGODB_URI;
-  const ready = !mongoConfigured || db.state === 'connected';
+  const serverReady = readiness.isReady();
+  const dbReady = !mongoConfigured || db.state === 'connected';
+  const ready = serverReady && dbReady;
   const payload = {
     status: ready ? 'ready' : 'not-ready',
+    serverReady,
     db,
     timestamp: new Date().toISOString(),
   };
