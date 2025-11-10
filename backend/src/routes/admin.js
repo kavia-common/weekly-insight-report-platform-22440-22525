@@ -1,8 +1,39 @@
 const express = require('express');
-const adminController = require('../controllers/adminController');
 const { requireAuth, requireRoles, auditAccess } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Safely load controller to avoid startup crashes if file is missing
+function safeLoadController() {
+  try {
+    // eslint-disable-next-line global-require
+    return require('../controllers/adminController');
+  } catch (e) {
+    // Provide minimal fallback handlers
+    const fallback = {
+      // PUBLIC_INTERFACE
+      async listUsers(_req, res) {
+        /** Fallback controller: admin list users unavailable. */
+        return res.status(503).json({ error: 'adminController unavailable' });
+      },
+      // PUBLIC_INTERFACE
+      async assignRole(req, res) {
+        /** Fallback controller: assign role unavailable. */
+        return res.status(503).json({ error: 'adminController unavailable' });
+      },
+      // PUBLIC_INTERFACE
+      async revokeRole(req, res) {
+        /** Fallback controller: revoke role unavailable. */
+        return res.status(503).json({ error: 'adminController unavailable' });
+      },
+    };
+    // Log warning but do not crash
+    // eslint-disable-next-line no-console
+    console.warn('[Startup] adminController not found, using fallback:', e?.message || e);
+    return fallback;
+  }
+}
+const adminController = safeLoadController();
 
 /**
  * @swagger

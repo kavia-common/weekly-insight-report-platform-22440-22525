@@ -1,8 +1,26 @@
 const express = require('express');
-const analyticsController = require('../controllers/analyticsController');
 const { requireAuth, requireRoles, auditAccess } = require('../middleware/auth');
 
 const router = express.Router();
+
+function safeLoadController() {
+  try {
+    // eslint-disable-next-line global-require
+    return require('../controllers/analyticsController');
+  } catch (e) {
+    const fallback = {
+      // PUBLIC_INTERFACE
+      async aggregates(_req, res) {
+        /** Fallback controller: analytics unavailable. */
+        return res.status(503).json({ error: 'analyticsController unavailable' });
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.warn('[Startup] analyticsController not found, using fallback:', e?.message || e);
+    return fallback;
+  }
+}
+const analyticsController = safeLoadController();
 
 /**
  * @swagger

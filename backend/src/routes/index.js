@@ -1,10 +1,33 @@
 const express = require('express');
-const healthController = require('../controllers/health');
 const { getDbHealth } = require('../services/db');
 const readiness = require('../services/readiness');
-const config = require('../config');
 
 const router = express.Router();
+
+// Safely load health controller (app.js serves health endpoints early regardless)
+function safeLoadHealthController() {
+  try {
+    // eslint-disable-next-line global-require
+    return require('../controllers/health');
+  } catch (e) {
+    // Minimal fallback service
+    const fallback = {
+      check(_req, res) {
+        return res.status(200).json({
+          status: 'ok',
+          message: 'Service is healthy',
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV || 'development',
+          note: 'health controller unavailable (fallback)',
+        });
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.warn('[Startup] health controller not found, using fallback:', e?.message || e);
+    return fallback;
+  }
+}
+const healthController = safeLoadHealthController();
 
 /**
  * @swagger

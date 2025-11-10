@@ -1,8 +1,41 @@
 const express = require('express');
-const authController = require('../controllers/authController');
 const { requireAuth, auditAccess } = require('../middleware/auth');
 
 const router = express.Router();
+
+function safeLoadController() {
+  try {
+    // eslint-disable-next-line global-require
+    return require('../controllers/authController');
+  } catch (e) {
+    const fallback = {
+      // PUBLIC_INTERFACE
+      async me(_req, res) {
+        /** Fallback: auth controller missing; return unauthenticated context. */
+        return res.status(200).json({ user: null, roles: [] });
+      },
+      // PUBLIC_INTERFACE
+      async mockLogin(_req, res) {
+        /** Fallback: mock login unavailable. */
+        return res.status(503).json({ error: 'authController unavailable' });
+      },
+      // PUBLIC_INTERFACE
+      async logout(_req, res) {
+        /** Fallback: just return OK (best-effort) */
+        return res.status(200).json({ ok: true, note: 'authController unavailable' });
+      },
+      // PUBLIC_INTERFACE
+      async oauthPlaceholder(_req, res) {
+        /** Fallback OAuth placeholder. */
+        return res.status(501).json({ error: 'Not Implemented' });
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.warn('[Startup] authController not found, using fallback:', e?.message || e);
+    return fallback;
+  }
+}
+const authController = safeLoadController();
 
 /**
  * @swagger
