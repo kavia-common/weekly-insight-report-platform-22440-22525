@@ -42,6 +42,7 @@ async function bootstrap() {
       console.warn('[Startup] MONGODB_URI not set. Skipping MongoDB connection and starting HTTP server without DB.');
     }
 
+    console.log(`[Startup] Attempting to bind HTTP server to ${HOST}:${PORT} ...`);
     server = app.listen(PORT, HOST, () => {
       readiness.setReady(true);
       console.log(`[Startup] Server listening on http://${HOST}:${PORT}`);
