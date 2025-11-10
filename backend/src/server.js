@@ -29,19 +29,7 @@ async function bootstrap() {
       mongoConfigured: !!config.mongoUri,
     });
 
-    // Attempt to connect to MongoDB only if configured, but never block server start.
-    if (config.mongoUri) {
-      try {
-        await connectMongo();
-        console.log('[Startup] MongoDB connected. Proceeding to start HTTP server...');
-      } catch (dbErr) {
-        console.error('[Startup] MongoDB connection failed. Starting HTTP server without DB:', dbErr?.message || dbErr);
-        // continue to start server; readiness endpoint will reflect DB state as not-ready if required
-      }
-    } else {
-      console.warn('[Startup] MONGODB_URI not set. Skipping MongoDB connection and starting HTTP server without DB.');
-    }
-
+    // Start HTTP server immediately; readiness will be set in listen callback.
     console.log(`[Startup] Attempting to bind HTTP server to ${HOST}:${PORT} ...`);
     server = app.listen(PORT, HOST, () => {
       readiness.setReady(true);
@@ -55,6 +43,20 @@ async function bootstrap() {
     server.on('error', (err) => {
       console.error('[Startup] HTTP server error:', err);
     });
+
+    // After starting HTTP server, attempt Mongo connection asynchronously (non-blocking)
+    if (config.mongoUri) {
+      (async () => {
+        try {
+          await connectMongo();
+          console.log('[Startup] MongoDB connected (post-start).');
+        } catch (dbErr) {
+          console.error('[Startup] MongoDB connection failed (post-start). Server continues without DB:', dbErr?.message || dbErr);
+        }
+      })();
+    } else {
+      console.warn('[Startup] MONGODB_URI not set. Running without MongoDB.');
+    }
 
     registerShutdownHooks();
   } catch (err) {
